@@ -49,7 +49,7 @@
 ​
 
 <소스>
-```python
+``` python
 import turtle as t
 
 import random
@@ -241,8 +241,9 @@ t.onkeypress(turn_down,"Down")
 t.onkeypress(start,"space")    # space키는 소문자!
 
 t.listen()
-```
+
 ​
 
 message("Turtle Run","[Space]")
+```
 [출처] 08.파이썬 프로젝트04 - 터틀런 게임 -|작성자 오리
