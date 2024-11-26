@@ -16,6 +16,9 @@
 # -> 이전 단계에 문지기 역할을 하는 괴물들을 먼저 물리쳐야 함 -> 이후에 보물찾기 게임 시작
 
 
+#위의 요구사항을 거의 다 적용시킴
+#아쉬운 것 -> 해적 모형을 찾기 어려움, 보물상자,, 
+
 
 from ursina import *
 from ursina.prefabs.first_person_controller import FirstPersonController
