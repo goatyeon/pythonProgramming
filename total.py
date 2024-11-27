@@ -58,7 +58,7 @@ def create_brick(position, color=color.brown):
 
 # ----- 괴물 설정 -----
 class Monster(Entity):
-    def __init__(self, **kwargs):
+    def __init__(self, target=None, **kwargs):
         super().__init__(
             model='cube',
             scale=(2, 2, 2),
@@ -69,29 +69,49 @@ class Monster(Entity):
         self.hp = 100
         self.speed = 2
         self.active = False  # 초기화 시 비활성화
+        self.target = target  # 추적할 목표 (보물 또는 플레이어)
 
     def update(self):
-        if not self.active:  # 괴물이 비활성화된 경우 업데이트하지 않음
+        if not self.active or not self.enabled:  # 괴물이 비활성화된 경우 업데이트하지 않음
             return
 
-        if distance(self, player) < 20:  # 플레이어와 가까워지면 추격
-            self.look_at(player.position)
-            self.position += self.forward * time.dt * self.speed
+        # 목표를 추적하는 알고리즘
+        if self.target:
+            self.look_at(self.target.position)  # 목표를 바라봄
+            self.position += self.forward * time.dt * self.speed  # 목표를 향해 이동
 
-        # 플레이어를 잡으면 게임 종료
-        if self.intersects(player).hit:
-            end_game("The monster caught you!")
+            # 목표와 충돌 처리
+            if current_round == 3 and isinstance(self.target, Treasure):  # 보물을 추적하는 경우
+                if self.intersects(self.target).hit:
+                    end_game("The monster caught the treasure!")
+            elif self.target == player:  # 플레이어를 추적하는 경우
+                if self.intersects(player).hit:
+                    end_game("The monster caught you!")
 
     def take_damage(self, damage):
-        if not self.active:  # 이미 비활성화된 경우 처리하지 않음
+        """괴물이 데미지를 받는 메서드"""
+        if not self.active or not self.enabled:  # 이미 비활성화된 경우 처리하지 않음
             return
 
         self.hp -= damage
         if self.hp <= 0:
             print("Monster defeated!")
             self.active = False
+            self.enabled = False  # 엔티티 비활성화
             destroy(self)  # 괴물 제거
             end_round()
+
+    def reset_position(self):
+        """괴물 위치를 초기화"""
+        self.position = random.choice(brick_positions)
+
+    def activate(self, target):
+        """괴물을 활성화"""
+        self.enabled = True
+        self.hp = 100
+        self.active = True
+        self.target = target  # 목표 설정
+        self.reset_position()
 
 monster = Monster(position=(10, 1, 10), enabled=False)
 
@@ -114,15 +134,16 @@ class Treasure(Entity):
         if self.move:  # 보물이 움직이는 경우
             self.position += self.direction * time.dt * self.speed
 
-            # 벽돌 영역 바깥으로 나가지 않도록 제한
-            if not any(self.position == Vec3(pos) for pos in brick_positions):
+            # 벽돌 근처에서만 움직이도록 제한
+            nearest_brick = min(brick_positions, key=lambda pos: distance(Vec3(pos), self.position))
+            if distance(Vec3(nearest_brick), self.position) > 3:
                 self.direction *= -1
 
 treasure = None
 
 # ----- 게임 설정 -----
 round_time = 30
-current_round = 1
+current_round = 0  # 0라운드부터 시작
 max_rounds = 3
 time_left = round_time
 game_active = False
@@ -147,12 +168,12 @@ def start_treasure_game():
     game_active = True
 
 def start_monster_game():
-    global game_active
+    global game_active, monster, treasure
     print("Monster game started!")
-    monster.enabled = True
-    monster.hp = 100
-    monster.active = True
-    monster.position = random.choice(brick_positions)  # 새로운 위치
+    if current_round == 3:
+        monster.activate(treasure)  # 3라운드에서는 보물을 추적
+    else:
+        monster.activate(player)  # 이전 라운드에서는 플레이어 추적
     game_active = True
 
 def start_round():
@@ -168,12 +189,13 @@ def start_round():
     generate_random_map()
 
     # 라운드 설정
-    if current_round == 1:  # 첫 번째 라운드: 괴물 추격
+    if current_round == 0:  # 0라운드: 괴물 추적
         start_monster_game()
-    elif current_round == 2:  # 두 번째 라운드: 보물 게임 (보물 움직임 시작)
-        monster.active = False  # 괴물 비활성화
+    elif current_round == 1:  # 첫 번째 라운드: 정적 보물
         start_treasure_game()
-    elif current_round == 3:  # 세 번째 라운드: 보물 + 괴물
+    elif current_round == 2:  # 두 번째 라운드: 움직이는 보물
+        start_treasure_game()
+    elif current_round == 3:  # 세 번째 라운드: 움직이는 보물 + 보물을 추적하는 괴물
         start_treasure_game()
         start_monster_game()
 
@@ -216,7 +238,7 @@ def input(key):
                 new_brick = create_brick(position, color=color.azure)
                 place_block_sound.play()
 
-# ----- 업데이트 -----
+# ----- 업데이트 ----- 
 def update():
     global treasure, game_active
 
@@ -226,7 +248,7 @@ def update():
     if treasure and game_active:
         treasure.update()
 
-    if monster.enabled and monster.active and game_active:
+    if monster and monster.enabled and monster.active and game_active:
         monster.update()
 
 # ----- 게임 시작 -----
