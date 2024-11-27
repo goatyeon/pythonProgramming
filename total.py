@@ -177,6 +177,8 @@ def start_treasure_game():
 def start_monster_game():
     global game_active, monster, treasure
     print("Monster game started!")
+    if not monster or not monster.enabled:
+        monster = Monster(position=(10, 1, 10), enabled=True)
     if current_round == 3:
         monster.activate(treasure)  # 보물을 추적
     else:
