@@ -72,21 +72,25 @@ class Monster(Entity):
         self.target = target  # 추적할 목표 (보물 또는 플레이어)
 
     def update(self):
-        if not self.active or not self.enabled:  # 괴물이 비활성화된 경우 업데이트하지 않음
+        if not self.active or not self.enabled or not self.target:  # 대상이 없거나 비활성화된 경우 업데이트하지 않음
             return
 
-        # 목표를 추적하는 알고리즘
-        if self.target:
-            self.look_at(self.target.position)  # 목표를 바라봄
-            self.position += self.forward * time.dt * self.speed  # 목표를 향해 이동
+        if not self.target.enabled:  # 대상이 삭제되었거나 비활성화된 경우
+            print("Target is no longer available")
+            self.active = False
+            return
 
-            # 목표와 충돌 처리
-            if current_round == 3 and isinstance(self.target, Treasure):  # 보물을 추적하는 경우
-                if self.intersects(self.target).hit:
-                    end_game("The monster caught the treasure!")
-            elif self.target == player:  # 플레이어를 추적하는 경우
-                if self.intersects(player).hit:
-                    end_game("The monster caught you!")
+        # 목표를 추적
+        self.look_at(self.target.position)  # 목표를 바라봄
+        self.position += self.forward * time.dt * self.speed  # 목표를 향해 이동
+
+        # 목표와 충돌 처리
+        if isinstance(self.target, Treasure):  # 보물을 추적하는 경우
+            if self.intersects(self.target).hit:
+                end_game("The monster caught the treasure!")
+        elif self.target == player:  # 플레이어를 추적하는 경우
+            if self.intersects(player).hit:
+                end_game("The monster caught you!")
 
     def take_damage(self, damage):
         """괴물이 데미지를 받는 메서드"""
@@ -131,6 +135,9 @@ class Treasure(Entity):
         self.speed = 2
 
     def update(self):
+        if not self.enabled:  # 보물이 비활성화된 경우 업데이트하지 않음
+            return
+
         if self.move:  # 보물이 움직이는 경우
             self.position += self.direction * time.dt * self.speed
 
@@ -148,7 +155,7 @@ max_rounds = 3
 time_left = round_time
 game_active = False
 
-# ----- 타이머 -----
+# ----- 타이머 ----- 
 timer_text = Text(text=f'Time Left: {int(time_left)}', position=(-0.5, 0.4), scale=2)
 
 def update_timer():
@@ -171,9 +178,9 @@ def start_monster_game():
     global game_active, monster, treasure
     print("Monster game started!")
     if current_round == 3:
-        monster.activate(treasure)  # 3라운드에서는 보물을 추적
+        monster.activate(treasure)  # 보물을 추적
     else:
-        monster.activate(player)  # 이전 라운드에서는 플레이어 추적
+        monster.activate(player)  # 플레이어를 추적
     game_active = True
 
 def start_round():
@@ -240,18 +247,32 @@ def input(key):
 
 # ----- 업데이트 ----- 
 def update():
-    global treasure, game_active
+    if game_active and treasure:
+        treasure.update()
+
+    if monster and monster.active:
+        monster.update()
 
     if current_round <= max_rounds:
         update_timer()
 
-    if treasure and game_active:
-        treasure.update()
-
-    if monster and monster.enabled and monster.active and game_active:
-        monster.update()
-
 # ----- 게임 시작 -----
 start_round()
+
+
+editor_camera = EditorCamera(enabled=False)  # EditorCamera 정의
+
+def pause_input(key):
+    if key == 'tab':    # tab 키를 누르면 편집 모드 전환
+        editor_camera.enabled = not editor_camera.enabled
+
+        player.visible_self = editor_camera.enabled
+        player.cursor.enabled = not editor_camera.enabled
+        # gun.enabled = not editor_camera.enabled
+        mouse.locked = not editor_camera.enabled
+        editor_camera.position = player.position  # 편집 모드에서 카메라 위치 조정
+
+        if not editor_camera.enabled:
+            mouse.locked = True  # 게임 모드로 돌아가면 마우스가 잠김
 
 app.run()
