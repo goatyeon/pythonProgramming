@@ -122,13 +122,13 @@ class Monster(Entity):
         self.position += self.forward * time.dt * self.speed  # 목표를 향해 이동
 
         # 거리 기반 충돌 감지
-        if self.target:
-            distance_to_target = distance(self.position, self.target.position)
-            if distance_to_target <= self.attack_distance:
-                self.attack_player()
-            else:
-                self.attacking = False  # 공격 중단
-
+        distance_to_target = distance(self.position, self.target.position)
+        if self.target and isinstance(self.target, Player) and distance_to_target <= self.attack_distance:
+            self.attack_player()
+        elif self.target and isinstance(self.target, Treasure) and distance_to_target <= self.attack_distance:
+            print("Monster caught the treasure!")
+            end_game("The monster caught the treasure!")  # 게임 종료
+    
     def attack_player(self):
         """플레이어를 공격"""
         if not self.attacking:  # 이미 공격 중이 아니면 실행
@@ -280,10 +280,10 @@ def start_monster_game():
         monster = Monster(position=(10, 1, 10), enabled=True)
 
     # 라운드별 설정
-    if current_round == 3:
-        monster.activate(treasure, speed=0.5)  # 마지막 라운드: 보물을 천천히 추적
+    if current_round == 3:  # 마지막 라운드
+        monster.activate(treasure, speed=0.5)  # 보물을 추적
     else:
-        monster.activate(player, speed=1)  # 다른 라운드: 플레이어를 느리게 추적
+        monster.activate(player, speed=1)  # 다른 라운드: 플레이어를 추적
     game_active = True
 
 def start_round():
