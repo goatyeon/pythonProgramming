@@ -9,7 +9,7 @@ app = Ursina()
 
 
 
-
+cube = Entity(model='cube', color=color.orange) 
 
 
 
@@ -53,7 +53,7 @@ def setup_main_menu():
     # "게임 시작" 버튼
     start_button = Button(
         parent=camera.ui,
-        text="게임 시작",
+        text="게임시작",
         color=color.white,
         text_color=color.black,
         scale=(0.3, 0.1),
@@ -65,7 +65,7 @@ def setup_main_menu():
     # "게임 설명" 버튼
     instructions_button = Button(
         parent=camera.ui,
-        text="게임 설명",
+        text="게임설명",
         color=color.white,
         text_color=color.black,
         scale=(0.3, 0.1),
