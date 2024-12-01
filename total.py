@@ -15,9 +15,29 @@ Sky()
 class Player(FirstPersonController):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.hp = 100
-        self.health_bar = Entity(parent=camera.ui, model='quad', color=color.red, scale=(0.3, 0.03), position=(-0.65, 0.45))
-        self.health_text = Text(f'{self.hp} HP', position=(-0.75, 0.5), scale=1.2, color=color.white)
+        self.hp_icons = []  # HP 아이콘 리스트
+        self.max_hp = 5  # 최대 HP
+        self.hp = self.max_hp
+
+        # HP 아이콘 생성
+        for i in range(self.max_hp):
+            icon = Entity(
+                parent=camera.ui,
+                model='quad',
+                texture='white_cube',
+                color=color.red,
+                scale=(0.03, 0.03),
+                position=(-0.75 + i * 0.05, 0.45)
+            )
+            self.hp_icons.append(icon)
+
+    def take_damage(self):
+        """플레이어가 데미지를 받는 메서드"""
+        if self.hp > 0:
+            self.hp -= 1
+            destroy(self.hp_icons.pop())  # HP 아이콘 제거
+            if self.hp <= 0:
+                end_game("You were defeated by the monster!")
 
 player = Player()
 
@@ -57,6 +77,8 @@ def create_brick(position, color=color.brown):
     return brick
 
 # ----- 괴물 설정 -----
+# ----- 괴물 설정 -----
+# ----- 괴물 설정 -----
 class Monster(Entity):
     def __init__(self, target=None, **kwargs):
         super().__init__(
@@ -66,55 +88,51 @@ class Monster(Entity):
             color=color.red,
             **kwargs
         )
-        self.hp = 100
-        self.speed = 2
-        self.active = False  # 초기화 시 비활성화
+        self.hp = 3  # 괴물의 초기 HP
+        self.speed = 1  # 기본 속도
+        self.active = False
         self.target = target  # 추적할 목표 (보물 또는 플레이어)
 
     def update(self):
-        if not self.active or not self.enabled or not self.target:  # 대상이 없거나 비활성화된 경우 업데이트하지 않음
+        if not self.active or not self.enabled or not self.target:
             return
 
-        if not self.target.enabled:  # 대상이 삭제되었거나 비활성화된 경우
-            print("Target is no longer available")
-            self.active = False
-            return
-
-        # 목표를 추적
         self.look_at(self.target.position)  # 목표를 바라봄
         self.position += self.forward * time.dt * self.speed  # 목표를 향해 이동
 
-        # 목표와 충돌 처리
-        if isinstance(self.target, Treasure):  # 보물을 추적하는 경우
-            if self.intersects(self.target).hit:
+        # 충돌 처리
+        if self.intersects(self.target).hit:
+            if isinstance(self.target, Player):  # 플레이어를 공격
+                self.attack_player()
+            elif isinstance(self.target, Treasure):  # 보물을 잡음
                 end_game("The monster caught the treasure!")
-        elif self.target == player:  # 플레이어를 추적하는 경우
-            if self.intersects(player).hit:
-                end_game("The monster caught you!")
+
+    def attack_player(self):
+        """플레이어를 공격"""
+        print("Monster attacks the player!")
+        player.take_damage()
 
     def take_damage(self, damage):
-        """괴물이 데미지를 받는 메서드"""
-        if not self.active or not self.enabled:  # 이미 비활성화된 경우 처리하지 않음
-            return
-
         self.hp -= damage
+        print(f"Monster takes {damage} damage! Remaining HP: {self.hp}")
         if self.hp <= 0:
             print("Monster defeated!")
             self.active = False
-            self.enabled = False  # 엔티티 비활성화
+            self.enabled = False
             destroy(self)  # 괴물 제거
-            end_round()
+            end_round()  # 라운드 종료 호출
 
     def reset_position(self):
         """괴물 위치를 초기화"""
         self.position = random.choice(brick_positions)
 
-    def activate(self, target):
+    def activate(self, target, speed=None):
         """괴물을 활성화"""
         self.enabled = True
-        self.hp = 100
+        self.hp = 3  # 매 라운드 초기화
         self.active = True
-        self.target = target  # 목표 설정
+        self.target = target
+        self.speed = speed if speed is not None else 1
         self.reset_position()
 
 monster = Monster(position=(10, 1, 10), enabled=False)
@@ -135,7 +153,7 @@ class Treasure(Entity):
         self.speed = 2
 
     def update(self):
-        if not self.enabled:  # 보물이 비활성화된 경우 업데이트하지 않음
+        if not self.enabled:
             return
 
         if self.move:  # 보물이 움직이는 경우
@@ -165,6 +183,36 @@ def update_timer():
     if time_left <= 0:
         end_game("Time's up!")
 
+
+
+# ------endround()--------
+
+
+def end_round():
+    """현재 라운드를 종료하고 다음 라운드로 이동"""
+    global current_round, game_active
+
+    print(f"Round {current_round} complete!")
+    Text(
+        text=f"Round {current_round} Complete!", 
+        origin=(0, 0), 
+        scale=2, 
+        color=color.gold, 
+        duration=2
+    )
+
+    current_round += 1
+    game_active = False
+
+    # 다음 라운드 시작을 지연 호출
+    if current_round <= max_rounds:
+        invoke(start_round, delay=2)
+    else:
+        end_game("You completed all rounds!")
+
+
+
+
 # ----- 게임 로직 -----
 def start_treasure_game():
     global treasure, game_active
@@ -174,15 +222,18 @@ def start_treasure_game():
     treasure = Treasure(position=treasure_position, move=move)
     game_active = True
 
+# ----- 게임 로직 -----
 def start_monster_game():
     global game_active, monster, treasure
     print("Monster game started!")
     if not monster or not monster.enabled:
         monster = Monster(position=(10, 1, 10), enabled=True)
+
+    # 라운드별 설정
     if current_round == 3:
-        monster.activate(treasure)  # 보물을 추적
+        monster.activate(treasure, speed=0.5)  # 마지막 라운드: 보물을 천천히 추적
     else:
-        monster.activate(player)  # 플레이어를 추적
+        monster.activate(player, speed=1)  # 다른 라운드: 플레이어를 느리게 추적
     game_active = True
 
 def start_round():
@@ -208,14 +259,6 @@ def start_round():
         start_treasure_game()
         start_monster_game()
 
-def end_round():
-    global current_round, game_active
-    print(f"Round {current_round} complete!")
-    Text(text=f"Round {current_round} Complete!", origin=(0, 0), scale=2, color=color.gold, duration=2)
-    current_round += 1
-    game_active = False
-    invoke(start_round, delay=2)
-
 def end_game(reason):
     print(f"Game Over! {reason}")
     Text(text=f"Game Over! {reason}", origin=(0, 0), scale=2, color=color.red, duration=3)
@@ -225,16 +268,17 @@ def end_game(reason):
 def input(key):
     global bricks, game_active
 
-    if key == 'left mouse down':  # 괴물 또는 보물 클릭
+    if key == 'left mouse down':  # 괴물, 보물, 또는 벽돌 클릭
         hit_info = raycast(camera.world_position, camera.forward, distance=10)
         if hit_info.hit:
             if isinstance(hit_info.entity, Monster) and game_active:
-                hit_info.entity.take_damage(25)  # 괴물에게 데미지
+                hit_info.entity.take_damage(1)  # 괴물에게 데미지
             elif isinstance(hit_info.entity, Treasure) and game_active:
                 print("Treasure collected!")
                 destroy(hit_info.entity)
                 end_round()
             elif hit_info.entity in bricks:  # 벽돌 제거
+                print("Brick destroyed!")
                 bricks.remove(hit_info.entity)
                 destroy(hit_info.entity)
                 remove_block_sound.play()
@@ -246,6 +290,8 @@ def input(key):
             if position not in [brick.position for brick in bricks]:  # 중복 방지
                 new_brick = create_brick(position, color=color.azure)
                 place_block_sound.play()
+   
+
 
 # ----- 업데이트 ----- 
 def update():
@@ -257,7 +303,6 @@ def update():
 
     if current_round <= max_rounds:
         update_timer()
-
 # ----- 게임 시작 -----
 start_round()
 
