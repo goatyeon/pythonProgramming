@@ -406,7 +406,6 @@ def create_brick(position, color=color.brown):
 
 # ----- 괴물 설정 -----
 
-
 class Monster(Entity):
     def __init__(self, target=None, **kwargs):
         super().__init__(
@@ -421,6 +420,8 @@ class Monster(Entity):
         self.target = target
         self.active = False
         self.destroyed = False
+        self.attacking = False  # 공격 중인지 상태 플래그
+        self.attack_distance = 2  # 공격 거리
 
     def update(self):
         if not self.active or self.destroyed or not self.target or not self.target.enabled:
@@ -431,21 +432,19 @@ class Monster(Entity):
         self.position += self.forward * time.dt * self.speed
 
         # 플레이어를 추적할 때 거리 계산
-        if isinstance(self.target, Player):
-            if distance(self.position, self.target.position) < 2:
-                self.target.take_damage()
+        if isinstance(self.target, Player) and distance(self.position, self.target.position) < self.attack_distance:
+            self.attack_player()
 
         # 보석 추적
-        elif isinstance(self.target, Treasure):
-            if distance(self.position, self.target.position) < 1:
-                end_game("The monster caught the treasure!")
+        elif isinstance(self.target, Treasure) and distance(self.position, self.target.position) < 1:
+            end_game("The monster caught the treasure!")
     
     def attack_player(self):
-        """플레이어를 공격"""
+        """플레이어에게 1초마다 데미지를 주는 메서드"""
         if not self.attacking:  # 이미 공격 중이 아니면 실행
             self.attacking = True
             print("Monster started attacking the player.")  # 디버깅 로그
-            self.apply_damage_to_player()  # 데미지 적용 시작
+            self.apply_damage_to_player()
 
     def apply_damage_to_player(self):
         """1초마다 플레이어에게 데미지를 가함"""
@@ -453,14 +452,12 @@ class Monster(Entity):
             self.attacking = False
             return
 
-        distance_to_player = distance(self.position, player.position)
-        if distance_to_player <= self.attack_distance:  # 여전히 부딪힌 상태인지 확인
-            player.take_damage()  # 플레이어 HP 감소
-            if player.hp > 0:  # 플레이어가 살아있다면 1초 후 다시 데미지 적용
-                invoke(self.apply_damage_to_player, delay=1)
+        if distance(self.position, self.target.position) < self.attack_distance:
+            self.target.take_damage()  # 플레이어 HP 감소
+            if self.target.hp > 0:
+                invoke(self.apply_damage_to_player, delay=1)  # 1초 후 다시 실행
         else:
-            self.attacking = False  # 부딪힘이 끝나면 공격 중단
-            print("Monster stopped attacking the player.")  # 디버깅 로그
+            self.attacking = False  # 플레이어와의 거리가 멀어지면 공격 중단
 
     def take_damage(self, damage):
         """몬스터가 피해를 입음"""
@@ -656,7 +653,7 @@ def start_monster_game():
 
     # 라운드별 설정
     if current_round == 3:  # 마지막 라운드
-        monster.activate(treasure, speed=0.5)  # 보물을 추적
+        monster.activate(treasure, speed=0.3)  # 보물을 추적
     elif current_round == 0:
         monster.activate(player, speed=1)  # 다른 라운드: 플레이어를 추적
     game_active = True
@@ -692,13 +689,24 @@ def start_round():
 
     elif current_round == 3:
         # 3라운드: 몬스터가 보석을 추적, 플레이어도 보석을 잡아야 함
-        treasure = Treasure(position=random.choice(brick_positions), move=True)
-        monster = Monster(target=treasure, position=random.choice(brick_positions), enabled=True)
+        treasure_pos = random.choice(brick_positions)
+        treasure = Treasure(position=treasure_pos, move=True)
+
+        # 몬스터가 보물과 반대쪽에서 시작하도록 설정
+        possible_positions = [pos for pos in brick_positions if distance(pos, treasure_pos) > 10]
+        if not possible_positions:
+            # 충분히 떨어진 위치가 없으면 맵의 중앙(또는 보석과 일정 거리)에서 시작
+            monster_pos = Vec3(0, 1, 0) if brick_positions else treasure_pos + Vec3(5, 0, 5)
+            print("No far position found. Monster starts at a default position.")
+        else:
+            monster_pos = random.choice(possible_positions)
+
+        monster = Monster(target=treasure, position=monster_pos, enabled=True)
         monster.active = True
 
     # 라운드 시작 메시지
     round_start_text = Text(
-        text=f"Round {current_round + 1} Start!",
+        text=f"Round {current_round } Start!",
         origin=(0, 0),
         scale=2,
         color=color.yellow
@@ -709,6 +717,9 @@ def start_round():
         destroy(round_start_text)
 
     invoke(fade_out_message, delay=2)
+
+
+
 
 
 
