@@ -1,20 +1,9 @@
 
-import random
+
 from random import uniform
 from ursina import *
 
 app = Ursina()
-
-
-
-
-
-#cube = Entity(model='cube', color=color.orange) 
-
-
-
-
-
 
 
 
@@ -55,7 +44,7 @@ def setup_main_menu(round):
     menu_entities.append(menu_background)
 
     # "게임 시작" 버튼
-    
+    ...
     start_button = Button(
         parent=camera.ui,
         text="게임시작",
@@ -138,8 +127,8 @@ class CustomFPSController(Entity):
         camera.parent = self.camera_pivot
         camera.position = (0, 1.5, 0)
         camera.rotation = (0, 0, 0)
-        mouse.locked = False  # 초기화 시 마우스 잠금 해제
-        mouse.visible = True  # 초기화 시 마우스 표시
+        mouse.locked = False 
+        mouse.visible = True  
         self.disable()  # 초기화 후 비활성화
 
     def update(self):
@@ -342,7 +331,7 @@ class Player(CustomFPSController):
         if self.hp > 0:
             self.hp -= 1
             destroy(self.hp_icons.pop())  # HP 아이콘 제거
-            self.hp_text.text = f"HP: {self.hp}"  # 텍스트 업데이트
+            self.hp_text.text = f"HP: {self.hp}"  
             print(f"Player HP: {self.hp}")
             if self.hp <= 0:
                 end_game("You were defeated by the monster!")
