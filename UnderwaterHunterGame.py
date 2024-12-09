@@ -256,21 +256,6 @@ def set_game_state(new_state):
 
 
 
-# # ----- 마우스 설정 -----
-# def show_mouse():
-#     from panda3d.core import WindowProperties
-#     wp = WindowProperties()
-#     wp.setCursorHidden(False)
-#     wp.setMouseMode(WindowProperties.M_absolute)
-#     base.win.requestProperties(wp)
-
-# def hide_mouse():
-#     from panda3d.core import WindowProperties
-#     wp = WindowProperties()
-#     wp.setCursorHidden(True)
-#     wp.setMouseMode(WindowProperties.M_relative)
-#     base.win.requestProperties(wp)
-
 
 # ----- 초기화 -----
 setup_main_menu(0)
@@ -726,13 +711,6 @@ def start_round():
 
     # 메시지 삭제
     invoke(destroy, round_start_text, delay=2)
-
-
-
-
-
-
-
 
 
 def end_game(reason):
